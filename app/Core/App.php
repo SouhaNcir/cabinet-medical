@@ -9,6 +9,13 @@ class App
     public function run(): void
     {
         $url = $_GET['url'] ?? 'auth/login';
+
+        if ($url === 'health') {
+            $controller = new \App\Controllers\HealthController();
+            $controller->index();
+            return;
+        }
+
         $segments = array_values(array_filter(explode('/', trim((string) $url, '/'))));
 
         $controllerName = !empty($segments[0]) ? ucfirst($segments[0]) . 'Controller' : 'AuthController';
