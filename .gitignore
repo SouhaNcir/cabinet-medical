@@ -17,4 +17,7 @@ vendor/
 
 # Fichiers système
 .DS_Store
-Thumbs.db
+Thumbs.dbcabinet_medical.sql
+
+# Export local de la base de données
+cabinet_medical.sql

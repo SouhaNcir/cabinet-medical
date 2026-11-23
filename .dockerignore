@@ -1,0 +1,15 @@
+.git
+.env
+.env.*
+!.env.example
+.venv
+vendor
+*.log
+logs/
+.idea/
+.vscode/
+.DS_Store
+
+cabinet_medical.sql
+
+database/schema.sql
