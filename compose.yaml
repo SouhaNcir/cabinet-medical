@@ -1,0 +1,43 @@
+
+services:
+  db:
+    image: mysql:8.4
+    container_name: cabinet-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD doit être définie dans .env}
+      MYSQL_DATABASE: ${DB_NAME:-cabinet_medical}
+      MYSQL_USER: cabinet_user
+      MYSQL_PASSWORD: ${DB_PASS:?DB_PASS doit être définie dans .env}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$$MYSQL_ROOT_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cabinet-app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      APP_ENV: production
+      BASE_URL: ""
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME:-cabinet_medical}
+      DB_USER: cabinet_user
+      DB_PASS: ${DB_PASS:?DB_PASS doit être définie dans .env}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_data:
