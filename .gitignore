@@ -1,0 +1,20 @@
+# Secrets : ne jamais versionner
+.env
+.env.*
+!.env.example
+
+# Journaux
+*.log
+logs/
+
+# Dépendances installées localement
+vendor/
+
+# Environnements virtuels et outils d'éditeur
+.venv/
+.idea/
+.vscode/
+
+# Fichiers système
+.DS_Store
+Thumbs.db
