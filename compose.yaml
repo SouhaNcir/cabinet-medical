@@ -1,4 +1,5 @@
 
+
 services:
   db:
     image: mysql:8.4
@@ -20,6 +21,7 @@ services:
       start_period: 30s
 
   app:
+    image: ghcr.io/souhancir/cabinet-medical:${IMAGE_TAG:-dev}
     build:
       context: .
       dockerfile: Dockerfile
