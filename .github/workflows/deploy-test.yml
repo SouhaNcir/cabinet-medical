@@ -1,0 +1,90 @@
+name: Démonstration déploiement et rollback
+
+# Lancement manuel : Actions > Démonstration déploiement et rollback > Run workflow
+# L'environnement de test est un runner GitHub TEMPORAIRE : il disparaît à la fin du job.
+# La démonstration se fait donc en une seule exécution : version stable -> nouvelle version -> rollback.
+on:
+  workflow_dispatch:
+    inputs:
+      previous_version:
+        description: 'Version stable déjà publiée (exemple : v1.0.0)'
+        required: true
+        type: string
+      new_version:
+        description: 'Nouvelle version déjà publiée (exemple : v1.0.1)'
+        required: true
+        type: string
+      do_rollback:
+        description: 'Revenir à la version stable après la nouvelle version'
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  demo:
+    name: Déployer, puis revenir en arrière
+    runs-on: ubuntu-latest
+    environment: test
+    permissions:
+      contents: read
+      packages: read
+    env:
+      PREVIOUS: ${{ inputs.previous_version }}
+      NEW: ${{ inputs.new_version }}
+
+    steps:
+      - name: Récupérer le code (compose.yaml et scripts)
+        uses: actions/checkout@v4
+
+      - name: Connexion à GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Créer un .env de test (valeurs aléatoires, jamais versionné)
+        run: |
+          DB_PASS_VALUE="$(openssl rand -hex 16)"
+          ROOT_PASS_VALUE="$(openssl rand -hex 16)"
+          echo "::add-mask::$DB_PASS_VALUE"
+          echo "::add-mask::$ROOT_PASS_VALUE"
+          {
+            echo "APP_ENV=production"
+            echo "BASE_URL="
+            echo "DB_NAME=cabinet_medical"
+            echo "DB_PASS=$DB_PASS_VALUE"
+            echo "MYSQL_ROOT_PASSWORD=$ROOT_PASS_VALUE"
+          } > .env
+
+      - name: "Étape 1 : déployer la version stable"
+        run: bash scripts/deploy.sh "$PREVIOUS"
+
+      - name: "Étape 2 : déployer la nouvelle version"
+        run: bash scripts/deploy.sh "$NEW"
+
+      - name: "Étape 3 : rollback vers la version stable"
+        if: ${{ inputs.do_rollback }}
+        run: |
+          echo "ROLLBACK : retour à $PREVIOUS (image déjà publiée, aucune reconstruction)"
+          bash scripts/deploy.sh "$PREVIOUS"
+
+      - name: Résumé
+        if: always()
+        run: |
+          {
+            echo "### Déploiement et rollback"
+            echo "- Version stable : \`$PREVIOUS\`"
+            echo "- Nouvelle version : \`$NEW\`"
+            echo "- Rollback demandé : \`${{ inputs.do_rollback }}\`"
+            echo "- Image en service à la fin : \`$(docker inspect "$(docker compose ps -q app)" --format '{{.Config.Image}}' 2>/dev/null || echo inconnue)\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Journaux utiles en cas d'échec
+        if: failure()
+        run: |
+          docker compose ps -a
+          docker compose logs --tail=100 app db
